@@ -1,65 +1,73 @@
 import os
 import discord
-import openai
+from discord.ext import commands
+from openai import AsyncOpenAI
 
-from Token import *
+from Token import GPT_tokon, discord_token
 
-# API 키 설정
-openai.api_key = GPT_tokon
-DISCORD_BOT_TOKEN = discord_token
+# Initialize OpenAI async client
+client = AsyncOpenAI(api_key=GPT_tokon)
 
-# 디스코드 클라이언트 설정
+# Set up Discord bot intents
 intents = discord.Intents.default()
 intents.message_content = True
-client = discord.Client(intents=intents)
 
-# 사용자별 대화 기록 저장
+# Create bot object (prefix: '!')
+bot = commands.Bot(command_prefix='!', intents=intents)
+
+# Dictionary to store chat history for each user
 chat_history = {}
 
-@client.event
+@bot.event
 async def on_ready():
-    print(f'로그인 성공: {client.user}')
+    print(f'Bot successfully logged in: {bot.user}')
 
-@client.event
-async def on_message(message):
-    # 봇 자신의 메시지는 무시
-    if message.author == client.user:
+@bot.command(name='reset')
+async def reset_conversation(ctx):
+    """Reset conversation history with the user"""
+    user_id = ctx.author.id
+    if user_id in chat_history:
+        del chat_history[user_id]
+    await ctx.send("Conversation history has been reset.")
+
+@bot.listen('on_message')
+async def chat_with_gpt(message):
+    # Ignore messages sent by the bot itself
+    if message.author == bot.user:
         return
 
-    # 메시지가 특정 프리픽스로 시작하는지 확인 (선택 사항)
-    # 만약 모든 메시지에 응답하려면 이 부분을 제거하세요.
+    # Ignore messages not starting with the prefix
     if not message.content.startswith('!'):
         return
 
     user_id = message.author.id
 
-    # 사용자별로 대화 기록 관리
+    # Manage chat history for each user
     if user_id not in chat_history:
         chat_history[user_id] = []
 
-    # 사용자 메시지 추가
-    chat_history[user_id].append({"role": "user", "content": message.content})
+    # Add the current user message to the history
+    user_message = message.content
+    chat_history[user_id].append({"role": "user", "content": user_message})
 
     try:
-        # OpenAI API에 대화 기록 전달
-        response = openai.ChatCompletion.create(
+        # Call OpenAI ChatCompletion
+        completion = await client.chat.completions.create(
             model='gpt-3.5-turbo',
             messages=chat_history[user_id]
         )
 
-        # 응답 내용 추출
-        reply = response.choices[0].message.content
+        reply = completion.choices[0].message.content
 
-        # 봇의 응답 추가
+        # Add assistant's reply to the history
         chat_history[user_id].append({"role": "assistant", "content": reply})
 
-        # 채널에 응답 전송
+        # Send the assistant's reply to the Discord channel
         await message.channel.send(reply)
 
     except Exception as e:
-        # 에러 처리
-        await message.channel.send("죄송합니다. 오류가 발생했습니다. 잠시 후 다시 시도해주세요.")
-        print(f"에러 발생: {e}")
+        await message.channel.send("ERROR: Please try again later.")
+        print(f"ERROR: {e}")
 
-# 봇 실행
-client.run(DISCORD_BOT_TOKEN)
+if __name__ == "__main__":
+    bot.run(discord_token)

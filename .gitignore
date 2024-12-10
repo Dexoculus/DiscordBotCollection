@@ -1,8 +1,8 @@
+# Ignore all __pycache__
+**/__pycache__/
+
 # Ignore all .json format config files.
 *.json
 
 # Ignore all Token folder that contains discord / OpneAI tokens
 **/Token/
-
-# Ignore all __pycache__
-**/__pycache__/
