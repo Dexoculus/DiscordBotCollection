@@ -1,4 +1,5 @@
 # Discord Bot Collection
+A simple collection of implementations of Discord bots.
 
 ## Overview
 - ChatGPT Bot: A conversational bot powered by OpenAI's GPT-3.5-turbo, allowing engaging interactions with users.
